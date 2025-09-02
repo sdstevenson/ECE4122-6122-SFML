@@ -27,5 +27,5 @@ include_directories(${PROJECT_SOURCE_DIR}/../SFML/include)
 link_directories(${PROJECT_SOURCE_DIR}/../SFML/lib)
 
 # Link the executable to the libraries in the lib directory
-target_link_libraries(Chap5 PUBLIC sfml-graphics sfml-system sfml-window)# sfml-audio ${OPENAL_LIBRARY})
+target_link_libraries(Chap1 PUBLIC sfml-graphics sfml-system sfml-window)# sfml-audio ${OPENAL_LIBRARY})
 
