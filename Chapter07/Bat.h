@@ -28,9 +28,9 @@ public:
 
 	void moveRight();
 
-	void Bat::stopLeft();
+	void stopLeft();
 
-	void Bat::stopRight();
+	void stopRight();
 
 	void update(Time dt);
 
