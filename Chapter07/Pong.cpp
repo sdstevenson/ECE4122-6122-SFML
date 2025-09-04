@@ -4,25 +4,26 @@
 #include <cstdlib>
 #include <SFML/Graphics.hpp>
 
-
+#define WIDTH 800
+#define HEIGHT 600
 int main()
 {
 	// Create a video mode object
-	VideoMode vm(1920, 1080);
+	VideoMode vm(WIDTH, HEIGHT);
 
 	// Create and open a window for the game
 
-	RenderWindow window(vm, "Pong", Style::Fullscreen);
+	RenderWindow window(vm, "Pong", Style::Resize);
 
 
 	int score = 0;
 	int lives = 3;
 
 	// Create a bat
-	Bat bat(1920 / 2, 1080 - 20);
+	Bat bat(WIDTH / 2, HEIGHT - 20);
 
 	// We will add a ball in the next chapter
-	Ball ball(1920 / 2, 0);
+	Ball ball(WIDTH / 2, 0);
 
 	// Create a Text object called HUD
 	Text hud;
@@ -134,7 +135,7 @@ int main()
 		}
 
 		// Handle ball hitting sides
-		if (ball.getPosition().left < 0 || 
+		if (ball.getPosition().left < 0 ||
 			ball.getPosition().left + 10 > window.getSize().x)
 		{
 			ball.reboundSides();
