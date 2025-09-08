@@ -42,6 +42,8 @@ int main() {
 	LaserBlast lasers = LaserBlast(0, 1000);
 	std::vector<std::unique_ptr<ECEEnemy>> enemies;	//Use unique ptr to prevent texture lifetime issues
 	std::vector<int> enemiesToRemove;
+	int enemyFireTimeout = 0;
+	int enemyShooter = 0;
 	bool switchDir = false;
 
 	while (window.isOpen()) {
@@ -109,15 +111,20 @@ int main() {
 			}
 
 
-			switchDir = false;
-
 			//Enemy update
+			switchDir = false;
+			enemyFireTimeout++;
+			enemyShooter = rand() % enemies.size() - 1;
 			for (int i = 0; i < enemies.size(); i++) {
 				ECEEnemy& currEnemy = *enemies.at(i);
 
 				//Move enemies
-				if (enemyDir == EnemyDir::Left) currEnemy.moveLeft();
-				else currEnemy.moveRight();
+				if (enemyDir == EnemyDir::Left) {
+					currEnemy.moveLeft();
+				}
+				else {
+					currEnemy.moveRight();
+				}
 				currEnemy.moveUp();
 				window.draw(currEnemy);
 
@@ -143,6 +150,12 @@ int main() {
 				if (currEnemy.getPosition().y < 10) {
 					state = GameState::GameOver;
 					break;
+				}
+
+				//Shoot a laser from a random enemy
+				if (enemyFireTimeout >= 5000 && enemyShooter == i) {
+					lasers.spawnFromEnemy(currEnemy);
+					enemyFireTimeout = 0;
 				}
 			}
 

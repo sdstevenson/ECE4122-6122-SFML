@@ -20,7 +20,7 @@ void LaserBlast::spawnFromBuzzy(ECEBuzzy& buzz) {
 void LaserBlast::spawnFromEnemy(ECEEnemy& enemy) {
 	const Vector2f enemyPosition = enemy.getPosition();
 
-	enemyLasers.push_back(Vector2f(enemyPosition.x - 40, 160));
+	enemyLasers.push_back(Vector2f(enemyPosition.x - 40, enemyPosition.y));
 }
 
 bool LaserBlast::checkBuzzyCollision(ECEBuzzy& buzz) {
@@ -32,8 +32,7 @@ bool LaserBlast::checkBuzzyCollision(ECEBuzzy& buzz) {
 		float x = enemyLasers.at(i).x;
 
 		//Check if in the right y range
-		if (maxY > position.y && minY < (position.y + buzz.getScaledHeight())) {
-			//Check if in the right x range
+		if (minY < position.y + buzz.getScaledWidth()) {
 			if (x > position.x && x < (position.x + buzz.getScaledWidth())) {
 				//If so, we have a collisions. Remove laser and return true.
 				enemyLasers.erase(enemyLasers.begin() + i);
