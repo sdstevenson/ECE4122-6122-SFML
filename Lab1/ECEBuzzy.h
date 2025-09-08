@@ -14,6 +14,8 @@ public:
     void moveRight();
     bool shouldBeRemoved(const ECEEnemy& enemy) const;
     Vector2f getPosition() const;
+    float getScaledWidth() const;
+    float getScaledHeight() const;
 
  private:
      Texture texture;
@@ -21,4 +23,6 @@ public:
      Vector2f scale;
      float leftBound;
      float rightBound;
+     float scaledWidth;
+     float scaledHeight;
 };

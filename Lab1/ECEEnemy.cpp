@@ -24,7 +24,7 @@ ECEEnemy::ECEEnemy(const int textureOption, const Vector2f setPos) {
 
 	scaledWidth = textSize.x * scale.x;
 	scaledHeight = textSize.y * scale.y;
-	velocity = Vector2f(0.01, 0.005);
+	velocity = Vector2f(0.05, 0.005);
 
 	setTexture(texture);
 	setPosition(position);

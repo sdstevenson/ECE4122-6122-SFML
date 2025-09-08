@@ -6,6 +6,10 @@ ECEBuzzy::ECEBuzzy() {
     position = Vector2f(50, 50);
     scale = Vector2f(0.25, 0.25);
 
+    Vector2u textSize = texture.getSize();
+    scaledWidth = textSize.x * scale.x;
+    scaledHeight = textSize.y * scale.y;
+
     setTexture(texture);
     setPosition(position);
     setScale(scale);
@@ -44,4 +48,12 @@ bool ECEBuzzy::shouldBeRemoved(const ECEEnemy& enemy) const {
 
 Vector2f ECEBuzzy::getPosition() const {
     return position;
+}
+
+float ECEBuzzy::getScaledWidth() const {
+    return scaledWidth;
+}
+
+float ECEBuzzy::getScaledHeight() const {
+    return scaledHeight;
 }

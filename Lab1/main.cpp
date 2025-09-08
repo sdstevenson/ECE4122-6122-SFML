@@ -39,9 +39,8 @@ int main() {
 
 	//Setup required variables
 	ECEBuzzy buzz = ECEBuzzy();
-	std::vector<LaserBlast> lasers;
+	LaserBlast lasers = LaserBlast(0, 1000);
 	std::vector<std::unique_ptr<ECEEnemy>> enemies;	//Use unique ptr to prevent texture lifetime issues
-	std::vector<int> lasersToRemove;
 	std::vector<int> enemiesToRemove;
 	bool switchDir = false;
 
@@ -59,7 +58,6 @@ int main() {
 						//Reset game state
 						lasers.clear();
 						enemies.clear();
-						lasersToRemove.clear();
 						enemiesToRemove.clear();
 						//Populate enemies
 						for (int row = 0; row < 4; row++) {
@@ -73,8 +71,7 @@ int main() {
 
 				case GameState::Running:
 					if (event.key.code == Keyboard::Space) {
-						LaserBlast newLaser = LaserBlast(buzz);
-						lasers.push_back(newLaser);
+						lasers.spawnFromBuzzy(buzz);
 					}
 					if (event.key.code == Keyboard::Left) {
 						buzz.moveLeft();
@@ -104,12 +101,17 @@ int main() {
 			window.draw(startupText);
 			break;
 		case GameState::Running:
-			//Draw buzz
+			//Buzz update
 			window.draw(buzz);
+			if (lasers.checkBuzzyCollision(buzz)) {
+				state = GameState::GameOver;
+				break;
+			}
+
 
 			switchDir = false;
 
-			//Enemy update loop
+			//Enemy update
 			for (int i = 0; i < enemies.size(); i++) {
 				ECEEnemy& currEnemy = *enemies.at(i);
 
@@ -127,12 +129,17 @@ int main() {
 					switchDir = true;
 				}
 
+				//Check for collisions with laser
+				if (lasers.checkEnemyCollision(currEnemy)) {
+					enemiesToRemove.push_back(i);
+					continue;
+				}
 				//Check for collisions with Buzz
 				if (buzz.shouldBeRemoved(currEnemy)) {
 					state = GameState::GameOver;
 					break;
 				}
-				//And check if hit the top of the screen
+				//Check if hit the top of the screen
 				if (currEnemy.getPosition().y < 10) {
 					state = GameState::GameOver;
 					break;
@@ -144,66 +151,33 @@ int main() {
 				else enemyDir = EnemyDir::Left;
 			}
 
-			//Draw all lasers, remove lasers that are out of bounds
-			for (int i = 0; i < lasers.size(); i++) {
-				bool removeLaser = false;
-
-				//Make sure we are referencing the laser, not copying it
-				LaserBlast& currLaser = lasers.at(i);
-
-				//Check if laser should be removed
-				if (currLaser.shouldBeRemoved()) {
-					lasersToRemove.push_back(i);
-					removeLaser = true;
-				}
-				else {
-					currLaser.updatePosition();
-					window.draw(currLaser);
-				}
-
-				//Check enemies for collision
-				for (int x = 0; x < enemies.size(); x++) {
-					ECEEnemy& currEnemy = *enemies.at(x);
-					if (currEnemy.shouldBeRemoved(currLaser)) {
-						enemiesToRemove.push_back(x);
-
-						//If there is a collision here, also remove this laser
-						if (!removeLaser) {
-							lasersToRemove.push_back(i);
-							removeLaser = true;
-						}
-
-					}
-				}
-				//If there are no more enemies, end the game
-				if (enemies.size() == 0) {
-					state = GameState::GameOver;
-				}
-			}
-
 			//Sort remove indices from highest to lowest and remove duplicates
-			std::sort(lasersToRemove.begin(), lasersToRemove.end(), std::greater<int>());
-			lasersToRemove.erase(std::unique(lasersToRemove.begin(), lasersToRemove.end()), lasersToRemove.end());
-
 			std::sort(enemiesToRemove.begin(), enemiesToRemove.end(), std::greater<int>());
 			enemiesToRemove.erase(std::unique(enemiesToRemove.begin(), enemiesToRemove.end()), enemiesToRemove.end());
 
-			//Remove lasers and enemies after the loop
-			for (int idx : lasersToRemove) {
-				if (idx < lasers.size())
-					lasers.erase(lasers.begin() + idx);
-			}
+			//Remove enemies after the loop
 			for (int idx : enemiesToRemove) {
 				if (idx < enemies.size())
 					enemies.erase(enemies.begin() + idx);
 			}
 
-			lasersToRemove.clear();
+			//If there are no more enemies, end the game
+			if (enemies.size() == 0) {
+				state = GameState::GameOver;
+			}
+
 			enemiesToRemove.clear();
+
+
+			//Laser update
+			lasers.updateLasers();
+			lasers.drawAll(window);
 
 			break;
 		case GameState::GameOver:
 			window.draw(gameOverText);
+			lasers.clear();
+			enemies.clear();
 			break;
 
 		}
