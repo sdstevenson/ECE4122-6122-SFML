@@ -22,7 +22,7 @@ int main() {
 
 	//Setup text
 	Font font;
-	font.loadFromFile("fonts/KOMIKAP_.ttf");
+	font.loadFromFile("graphics/KOMIKAP_.ttf");
 	Text startupText;
 	startupText.setFont(font);
 	startupText.setString("Welcome. Press enter to start.");

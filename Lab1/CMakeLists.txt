@@ -41,10 +41,3 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/Lab1/graphics $<TARGET_FILE_DIR:Lab1>/graphics
 )
-
-# Copy the fonts folder to the output directory
-add_custom_command(
-    TARGET Lab1 POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/Lab1/fonts $<TARGET_FILE_DIR:Lab1>/fonts
-)
