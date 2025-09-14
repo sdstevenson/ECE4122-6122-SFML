@@ -10,7 +10,7 @@ class LaserBlast;
 
 class ECEEnemy : public Sprite {
 public:
-	ECEEnemy(const int textureOption, const Vector2f setPos);
+	ECEEnemy(int textureOption, const Vector2f setPos, const Texture& texture);
 	void moveLeft();
 	void moveRight();
 	void moveUp();
@@ -23,7 +23,6 @@ public:
 	float getScaledHeight() const;
 
 private:
-	Texture texture;
 	Vector2f position;
 	Vector2f scale;
 	float scaledWidth;

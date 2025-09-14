@@ -17,10 +17,10 @@ set(OPENAL_LIBRARY ${PROJECT_SOURCE_DIR}/../SFML/extlibs/libs-msvc/x64/openal32.
 
 # Add the executable
 add_executable(Lab1 
-    "main.cpp"
-    "ECEBuzzy"
-    "Laser"
-    "ECEEnemy"
+    "code/main.cpp"
+    "code/ECEBuzzy"
+    "code/Laser"
+    "code/ECEEnemy"
  )
 
 include_directories(${PROJECT_SOURCE_DIR}/../SFML/include)

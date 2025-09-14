@@ -40,7 +40,11 @@ int main() {
 	//Setup required variables
 	ECEBuzzy buzz = ECEBuzzy();
 	LaserBlast lasers = LaserBlast(0, 1000);
-	std::vector<std::unique_ptr<ECEEnemy>> enemies;	//Use unique ptr to prevent texture lifetime issues
+	Texture enemyTex0, enemyTex1;
+	enemyTex0.loadFromFile("graphics/bulldog.png");
+	enemyTex1.loadFromFile("graphics/clemson_tigers.png");
+	const Texture* enemyTexture[2] = { &enemyTex0, &enemyTex1 };	//Shared ref to textures, preventing lifecycle issues
+	std::vector<ECEEnemy> enemies;
 	std::vector<int> enemiesToRemove;
 	int enemyFireTimeout = 0;
 	int enemyShooter = 0;
@@ -64,7 +68,7 @@ int main() {
 						//Populate enemies
 						for (int row = 0; row < 4; row++) {
 							for (int col = 0; col < 8; col++) {
-								enemies.push_back(std::make_unique<ECEEnemy>(row % 2, Vector2f(40 + col * 80, 500 + row * 80)));
+								enemies.push_back(ECEEnemy(row%2, Vector2f(40 + col * 80, 500 + row * 80), *enemyTexture[row%2]));
 							}
 						}
 						state = GameState::Running;
@@ -116,7 +120,7 @@ int main() {
 			enemyFireTimeout++;
 			enemyShooter = rand() % enemies.size() - 1;
 			for (int i = 0; i < enemies.size(); i++) {
-				ECEEnemy& currEnemy = *enemies.at(i);
+				ECEEnemy& currEnemy = enemies.at(i);
 
 				//Move enemies
 				if (enemyDir == EnemyDir::Left) {

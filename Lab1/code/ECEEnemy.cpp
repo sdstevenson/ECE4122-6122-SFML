@@ -1,20 +1,13 @@
 #include "ECEEnemy.h"
 #include "Laser.h"
 
-ECEEnemy::ECEEnemy(const int textureOption, const Vector2f setPos) {
+ECEEnemy::ECEEnemy(const int textureOption, const Vector2f setPos, const Texture& texture) {
 	//Set texture based on inputs
 	if (textureOption == 0) {
-		texture.loadFromFile("graphics/bulldog.png");
 		scale = Vector2f(0.25, 0.25);
 	}
 	else if (textureOption == 1) {
-		texture.loadFromFile("graphics/clemson_tigers.png");
 		scale = Vector2f(0.0833, 0.0833);
-	}
-	else {
-		printf("ERROR: No texture set, defaulting to bulldog\n");
-		texture.loadFromFile("graphics/bulldog.png");
-		scale = Vector2f(0.25, 0.25);
 	}
 
 	//Set position and scale
