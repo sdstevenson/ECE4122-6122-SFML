@@ -41,6 +41,10 @@ void ThreadPool::waitForAll() {
     while (active_threads.load() > 0)
     {
         std::unique_lock<std::mutex> lock(queueMutex);
+        // Wait efficiently on condition variable until active_threads == 0
+        doneCondition.wait(lock, [this]() {
+            return active_threads.load() == 0;
+        });
     }
 }
 
@@ -70,6 +74,8 @@ void ThreadPool::workerThread()
         {
             std::unique_lock<std::mutex> lock(queueMutex);
             active_threads--;
+            if (active_threads <= 0)
+                doneCondition.notify_all();
         }
     }
 }
