@@ -97,50 +97,6 @@ void drawSquare(int x, int y, int cellSize, RenderWindow* window) {
 	window->draw(square);
 }
 
-/*
-Threading helper process indicies from start to end
-No need for locks as writes are done to next, reads from curr, and no threads write to curr.
-*/
-static void thrdHelper(const vector<int>* curr, vector<int>* next, size_t start, size_t end, size_t rows, size_t cols) {
-	//Perform some quick bounds checking
-	size_t total = (size_t)rows * (size_t)cols;
-	if (start >= total) return;
-	if (end > total) end = total;
-	if (start >= end) return;
-	
-	for (size_t index = start; index < end; index++) {
-		//Get row and column indicies
-		size_t row = index / (size_t)cols;
-		size_t col = index % (size_t)cols;
-
-		//Reset numNeighbors per cell
-		int numNeighbors = 0;
-
-		//Check around each cell for neighboring cells
-		for (int dr = -1; dr <= 1; ++dr) {
-			for (int dc = -1; dc <= 1; ++dc) {
-				if (dr == 0 && dc == 0) continue;
-				size_t rowToCheck = row + dr;
-				size_t colToCheck = col + dc;
-				if (rowToCheck >= 0 && rowToCheck < rows && colToCheck >= 0 && colToCheck < cols) {
-					size_t nextIndex = rowToCheck * cols + colToCheck;
-					if (curr->at(nextIndex) != 0) numNeighbors++;
-				}
-			}
-		}
-
-		int currCell = (*curr)[index];
-		if (currCell != 0) {
-			//If alive, die if numNeighbors is not 2 or 3
-			(*next)[index] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
-		}
-		else {
-			//If dead, revive if numNeighbors is 3
-			(*next)[index] = (numNeighbors == 3) ? 1 : 0;
-		}
-	}
-}
-
 int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
@@ -178,8 +134,8 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth
 					}
 				}
 
-				int cur = (*gameMatrix)[r][c];
-				if (cur != 0) {
+				int currCell = (*gameMatrix)[r][c];
+				if (currCell != 0) {
 					//If alive, die if numNeighbors is not 2 or 3
 					nextGameMatrix[r][c] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
 				}
@@ -256,15 +212,72 @@ int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThr
 
 		//Each thread processes a chunk
 		size_t rowStart = 0;
-		for (size_t i = 0; i < numThreads; i++) {
-			int chunk = baseChunk;
-			if (i < remainder) chunk++;		//Send remainders out to first workers
-			size_t start = rowStart * cols;
-			size_t end = (rowStart + chunk) * cols;
-			pool.enqueueTask([gameMatrix, &nextGameMatrix, start, end, rows, cols]() {
-				thrdHelper(gameMatrix, &nextGameMatrix, start, end, rows, cols);
-				});
-			rowStart += chunk;
+		for (size_t row = 0; row < rows; row++) {
+			pool.enqueueTask([gameMatrix, &nextGameMatrix, row, rows, cols]() {
+				//Loop through each element on this row
+				for (int col = 0; col < cols; col++) {
+					//Reset numNeighbors per cell
+					int numNeighbors = 0;
+
+					int index = row * cols + col;
+
+					#pragma region NeighborsCheck
+					//Check around each cell for neighboring cells - hardcoded 8 neighbors
+					int nr, nc;
+					// (r-1, c-1)
+					nr = row - 1; nc = col - 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r-1, c)
+					nr = row - 1; nc = col;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r-1, c+1)
+					nr = row - 1; nc = col + 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r, c-1)
+					nr = row; nc = col - 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r, c+1)
+					nr = row; nc = col + 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r+1, c-1)
+					nr = row + 1; nc = col - 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r+1, c)
+					nr = row + 1; nc = col;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					// (r+1, c+1)
+					nr = row + 1; nc = col + 1;
+					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+					}
+					#pragma endregion
+
+
+					int currCell = (*gameMatrix)[index];
+					if (currCell != 0) {
+						//If alive, die if numNeighbors is not 2 or 3
+						nextGameMatrix[index] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
+					}
+					else {
+						//If dead, revive if numNeighbors is 3
+						nextGameMatrix[index] = (numNeighbors == 3) ? 1 : 0;
+					}
+				}
+			});
 		}
 
 		//Wait for threads to end
@@ -301,7 +314,7 @@ int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThr
 		&& event.type != Event::Closed
 		&& event.type == Event::KeyPressed ? event.key.code != Keyboard::Escape : true);
 
-	//Clear up the window on exit
+	//Clear up the window on exit. Thread pool gets destroyed when out of scope. 
 	window.close();
 	return 0;
 }

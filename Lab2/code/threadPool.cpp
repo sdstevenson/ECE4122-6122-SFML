@@ -41,8 +41,6 @@ void ThreadPool::waitForAll() {
     while (active_threads.load() > 0)
     {
         std::unique_lock<std::mutex> lock(queueMutex);
-        // Yield allows other threads to run; it's a simple way to wait
-        std::this_thread::yield();
     }
 }
 
