@@ -227,42 +227,42 @@ int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThr
 					// (r-1, c-1)
 					nr = row - 1; nc = col - 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index - cols - 1] != 0) ++numNeighbors;
 					}
 					// (r-1, c)
 					nr = row - 1; nc = col;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index - cols] != 0) ++numNeighbors;
 					}
 					// (r-1, c+1)
 					nr = row - 1; nc = col + 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index - cols + 1] != 0) ++numNeighbors;
 					}
 					// (r, c-1)
 					nr = row; nc = col - 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index - 1] != 0) ++numNeighbors;
 					}
 					// (r, c+1)
 					nr = row; nc = col + 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index + 1] != 0) ++numNeighbors;
 					}
 					// (r+1, c-1)
 					nr = row + 1; nc = col - 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index + cols - 1] != 0) ++numNeighbors;
 					}
 					// (r+1, c)
 					nr = row + 1; nc = col;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index + cols] != 0) ++numNeighbors;
 					}
 					// (r+1, c+1)
 					nr = row + 1; nc = col + 1;
 					if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-						if ((*gameMatrix)[nr * cols + nc] != 0) ++numNeighbors;
+						if ((*gameMatrix)[index + cols + 1] != 0) ++numNeighbors;
 					}
 					#pragma endregion
 
