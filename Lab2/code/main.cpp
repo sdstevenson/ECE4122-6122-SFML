@@ -4,6 +4,13 @@
 #include <cstdlib>
 #include <ctime>
 #include <chrono>
+
+//Threading imports
+#include <thread>
+#include <mutex>
+#include "threadPool.hpp"
+
+//SFML imports
 #include <SFML/Graphics.hpp>
 
 using namespace std;
@@ -90,7 +97,51 @@ void drawSquare(int x, int y, int cellSize, RenderWindow* window) {
 	window->draw(square);
 }
 
-int seqGameOfLife(vector<vector<int>>* gameMatrix, int numThreads, int cellSize, int windowWidth, int windowHeight) {
+/*
+Threading helper process indicies from start to end
+No need for locks as writes are done to next, reads from curr, and no threads write to curr.
+*/
+static void thrdHelper(const vector<int>* curr, vector<int>* next, size_t start, size_t end, size_t rows, size_t cols) {
+	//Perform some quick bounds checking
+	size_t total = (size_t)rows * (size_t)cols;
+	if (start >= total) return;
+	if (end > total) end = total;
+	if (start >= end) return;
+	
+	for (size_t index = start; index < end; index++) {
+		//Get row and column indicies
+		size_t row = index / (size_t)cols;
+		size_t col = index % (size_t)cols;
+
+		//Reset numNeighbors per cell
+		int numNeighbors = 0;
+
+		//Check around each cell for neighboring cells
+		for (int dr = -1; dr <= 1; ++dr) {
+			for (int dc = -1; dc <= 1; ++dc) {
+				if (dr == 0 && dc == 0) continue;
+				size_t rowToCheck = row + dr;
+				size_t colToCheck = col + dc;
+				if (rowToCheck >= 0 && rowToCheck < rows && colToCheck >= 0 && colToCheck < cols) {
+					size_t nextIndex = rowToCheck * cols + colToCheck;
+					if (curr->at(nextIndex) != 0) numNeighbors++;
+				}
+			}
+		}
+
+		int currCell = (*curr)[index];
+		if (currCell != 0) {
+			//If alive, die if numNeighbors is not 2 or 3
+			(*next)[index] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
+		}
+		else {
+			//If dead, revive if numNeighbors is 3
+			(*next)[index] = (numNeighbors == 3) ? 1 : 0;
+		}
+	}
+}
+
+int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
 	RenderWindow window(vm, "Game of Life -SFML", Style::Default);
@@ -175,11 +226,171 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int numThreads, int cellSize,
 	return 0;
 }
 
-int thrdGameOfLife(int numThreads, int cellSize, int windowWidth, int windowHeight) {
+int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThreads, int cellSize, int windowWidth, int windowHeight) {
+	//Set up the game based on args
+	VideoMode vm(windowWidth, windowHeight);
+	RenderWindow window(vm, "Game of Life -SFML", Style::Default);
+
+	//Set up thread pool
+	ThreadPool pool(numThreads);
+
+	//Partition calculations among workers equally
+	size_t baseChunk = rows / numThreads;
+	size_t remainder = rows % numThreads;
+
+	//Set up timer
+	int generationNum = 0;
+	chrono::nanoseconds totalTime(0);
+
+	Event event;	//Event to check user inputs
+
+	do {
+		//Check for user inputs
+		window.pollEvent(event);
+
+		//Get time to calculate this iteration
+		auto start = chrono::high_resolution_clock::now();
+
+		//Update gameMatrix
+		vector<int> nextGameMatrix(rows * cols, 0);	//Create a next game state, so we can update without updating the current
+
+		//Each thread processes a chunk
+		size_t rowStart = 0;
+		for (size_t i = 0; i < numThreads; i++) {
+			int chunk = baseChunk;
+			if (i < remainder) chunk++;		//Send remainders out to first workers
+			size_t start = rowStart * cols;
+			size_t end = (rowStart + chunk) * cols;
+			pool.enqueueTask([gameMatrix, &nextGameMatrix, start, end, rows, cols]() {
+				thrdHelper(gameMatrix, &nextGameMatrix, start, end, rows, cols);
+				});
+			rowStart += chunk;
+		}
+
+		//Wait for threads to end
+		pool.waitForAll();
+
+		//Set game matrix to the newly calculate one
+		*gameMatrix = std::move(nextGameMatrix);
+
+		//Get end time of iteration calculation and add to overal duration
+		auto stop = chrono::high_resolution_clock::now();
+		generationNum++;
+		totalTime += (stop - start);
+
+		//Print every 100th generation
+		if ((generationNum % 100) == 0) {
+			auto avgMs = chrono::duration_cast<std::chrono::milliseconds>(totalTime).count();
+			printf("100 generations took %lld microseconds with %d std::threads.\n", (long long)avgMs, numThreads);
+			totalTime = chrono::nanoseconds(0);
+		}
+
+		//Draw gameMatrix
+		window.clear(sf::Color::Black);		//Make sure to reset the screen
+		for (size_t r = 0; r < rows; r++) {
+			for (size_t c = 0; c < cols; c++) {
+				if ((*gameMatrix)[r * cols + c] != 0) {
+					drawSquare(c, r, cellSize, &window);
+				}
+			}
+		}
+
+		//Continue while window is open, and user has not pressed escape
+		window.display();
+	} while (window.isOpen()
+		&& event.type != Event::Closed
+		&& event.type == Event::KeyPressed ? event.key.code != Keyboard::Escape : true);
+
+	//Clear up the window on exit
+	window.close();
 	return 0;
 }
 
-int ompGameOfLife(int numThreads, int cellSize, int windowWidth, int windowHeight) {
+int ompGameOfLife(vector<vector<int>>* gameMatrix, int numThreads, int cellSize, int windowWidth, int windowHeight) {
+	//Set up the game based on args
+	VideoMode vm(windowWidth, windowHeight);
+	RenderWindow window(vm, "Game of Life -SFML", Style::Default);
+
+	//Set up timer
+	int generationNum = 0;
+	chrono::nanoseconds totalTime(0);
+
+	Event event;	//Event to check user inputs
+	int rows = gameMatrix->size();
+	int cols = gameMatrix->at(0).size();
+
+	do {
+		//Check for user inputs
+		window.pollEvent(event);
+
+		//Get time to calculate this iteration
+		auto start = chrono::high_resolution_clock::now();
+
+		//Update gameMatrix
+		vector<vector<int>> nextGameMatrix(rows, vector<int>(cols, 0));		//Create a new game state without updating curr
+
+#pragma omp parallel for num_threads(num_threads)
+		for (int r = 0; r < rows; ++r) {
+			for (int c = 0; c < cols; ++c) {
+				int numNeighbors = 0;
+				//Check around each cell for neighboring cells
+				for (int dr = -1; dr <= 1; ++dr) {
+					for (int dc = -1; dc <= 1; ++dc) {
+						if (dr == 0 && dc == 0) continue;
+						int rowToCheck = (int)r + dr;
+						int colToCheck = (int)c + dc;
+						if (rowToCheck >= 0 && rowToCheck < (int)rows && colToCheck >= 0 && colToCheck < (int)cols) {
+							if ((*gameMatrix)[rowToCheck][colToCheck] != 0) numNeighbors++;
+						}
+					}
+				}
+
+				int cur = (*gameMatrix)[r][c];
+				if (cur != 0) {
+					//If alive, die if numNeighbors is not 2 or 3
+					nextGameMatrix[r][c] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
+				}
+				else {
+					//If dead, revive if numNeighbors is 3
+					nextGameMatrix[r][c] = (numNeighbors == 3) ? 1 : 0;
+				}
+			}
+		}
+#
+
+		//Set game matrix to the newly calculate one
+		*gameMatrix = std::move(nextGameMatrix);
+
+		//Get end time of iteration calculation and add to overal duration
+		auto stop = chrono::high_resolution_clock::now();
+		generationNum++;
+		totalTime += (stop - start);
+
+		//Print every 100th generation
+		if ((generationNum % 100) == 0) {
+			auto avgMs = chrono::duration_cast<std::chrono::milliseconds>(totalTime).count();
+			printf("100 generations took %lld microseconds with single thread.\n", (long long)avgMs);
+			totalTime = chrono::nanoseconds(0);
+		}
+
+		//Draw gameMatrix
+		window.clear(sf::Color::Black);		//Make sure to reset the screen
+		for (int r = 0; r < rows; r++) {
+			for (int c = 0; c < cols; c++) {
+				if ((*gameMatrix)[r][c] != 0) {
+					drawSquare(c, r, cellSize, &window);
+				}
+			}
+		}
+
+		//Continue while window is open, and user has not pressed escape
+		window.display();
+	} while (window.isOpen()
+		&& event.type != Event::Closed
+		&& event.type == Event::KeyPressed ? event.key.code != Keyboard::Escape : true);
+
+	//Clear up the window on exit
+	window.close();
 	return 0;
 }
 
@@ -198,28 +409,32 @@ int main(int argc, char* argv[]) {
 	}
 
 	//Define game state trackers
-	vector<vector<int>> gameMatrix(windowHeight / cellSize, vector<int>(windowWidth / cellSize, 0));
+	size_t rows = (windowHeight / cellSize);
+	size_t cols = (windowWidth / cellSize);
+	vector<vector<int>> gameMatrix(rows, vector<int>(cols, 0));
+	vector<int> flattenedGameMatrix(rows * cols, 0);
 
-	//Initialize the underlying matrix, ~every cellOccurance - th cell should be set to alive
+	//Initialize the underlying matrix, every cellOccurance(th) cell should be set to alive
 	int cellOccurance = 3;
 	int numAlive = 0;
 	srand(time(0));		//Seed the random number generator
-	for (int row = 0; row < gameMatrix.size(); row++) {
-		for (int col = 0; col < gameMatrix[0].size(); col++) {
+	for (size_t row = 0; row < rows; row++) {
+		for (size_t col = 0; col < cols; col++) {
 			if (rand() % (cellOccurance + 1) == cellOccurance) {
 				gameMatrix[row][col] = 1;
+				flattenedGameMatrix[row * cols + col] = 1;
 				numAlive++;
 			}
 		}
 	}
 	if (option == RunOptions::SEQ) {
-		seqGameOfLife(&gameMatrix, numThreads, cellSize, windowWidth, windowHeight);
+		seqGameOfLife(&gameMatrix, cellSize, windowWidth, windowHeight);
 	}
 	else if (option == RunOptions::THRD) {
-		thrdGameOfLife(numThreads, cellSize, windowWidth, windowHeight);
+		thrdGameOfLife(&flattenedGameMatrix, rows, cols, numThreads, cellSize, windowWidth, windowHeight);
 	}
 	else if (option == RunOptions::OMP) {
-		ompGameOfLife(numThreads, cellSize, windowWidth, windowHeight);
+		ompGameOfLife(&gameMatrix, numThreads, cellSize, windowWidth, windowHeight);
 	}
 
 	return 0;
