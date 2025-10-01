@@ -1,3 +1,12 @@
+/*
+Author: Samir Stevenson
+Class: ECE4122
+Last Data Modified: 10/1/2025
+
+Description: John Conway's Game of Life, implemented sequentially, with threads, and using OMP for threading.
+
+*/
+
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -18,14 +27,37 @@ using namespace sf;
 
 enum class RunOptions {SEQ, THRD, OMP};
 
+/*
+Gets user input, and assigns values to passed in pointers as parsed. Returns status as an int.
+
+Inputs
+	int argc: User args count
+	char* argv[]: User args
+
+Outputs
+	int* numThreads: Pointer to numThreads variable to set
+	int* cellSize: Pointer to cellSize variable to set
+	int* windowWidth: Pointer to windowWidth variable to set
+	int* windowHeight: Pointer to windowHeight variable to set
+	RunOptions* option: Pointer to RunOptions enum to set
+
+Returns
+	int: Status, 1 on error 0 on success
+
+*/
 int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* windowWidth, int* windowHeight, RunOptions* option) {
 	int temp;	//Temp int to hold user inputs
 	string currArg;
 	string optString;
 
 	for (int i = 0; i < argc; ++i) {
+		//Loop through each arg, checking if valid and setting as needed.
+		//Return 1 on error
+
+		//Get the current argument once
 		currArg = argv[i];
 		if (currArg == "-n") {
+			//Check for numThreads
 			temp = stoi(argv[i + 1]);
 			if (temp < 2) {
 				printf("Invalid num threads input!\n");
@@ -36,6 +68,7 @@ int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* wi
 			}
 		}
 		else if (currArg == "-c") {
+			//Check for cellSize
 			temp = stoi(argv[i + 1]);
 			if (temp < 1) {
 				printf("Invalid cell size input!\n");
@@ -46,6 +79,7 @@ int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* wi
 			}
 		}
 		else if (currArg == "-x") {
+			//Check for windowWidth
 			temp = stoi(argv[i + 1]);
 			if (temp < 0) {
 				printf("Invalid window width input!\n");
@@ -56,6 +90,7 @@ int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* wi
 			}
 		}
 		else if (currArg == "-y") {
+			//Check for windowHeight
 			temp = stoi(argv[i + 1]);
 			if (temp < 0) {
 				printf("Invalid window height input!\n");
@@ -66,6 +101,7 @@ int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* wi
 			}
 		}
 		else if (currArg == "-t") {
+			//Check for optString, which mode to execute in
 			string tempStr = argv[i + 1];
 			if (tempStr == "SEQ") {
 				*option = RunOptions::SEQ;
@@ -86,10 +122,25 @@ int getUserInput(int argc, char* argv[], int* numThreads, int* cellSize, int* wi
 		}
 	}
 
-	//printf("Running with options: numThreads (%d), cellSize (%d), windowWidth (%d), windowHeight (%d), options (%s)\n", *numThreads, *cellSize, *windowWidth, *windowHeight, optString.c_str());
 	return 0;
 }
 
+/*
+Draws a single square, cell, on screen.
+
+Inputs
+	int x: X position to draw at
+	int y: Y position to draw at
+	int cellSize: Size of the cell to draw
+	RenderWindow* window: Pointer to the window to draw on
+
+Outputs
+	None
+
+Returns
+	void
+	
+*/
 void drawSquare(int x, int y, int cellSize, RenderWindow* window) {
 	RectangleShape square(sf::Vector2f(cellSize, cellSize));
 	square.setFillColor(sf::Color::White);
@@ -97,6 +148,22 @@ void drawSquare(int x, int y, int cellSize, RenderWindow* window) {
 	window->draw(square);
 }
 
+
+/*
+Sequential implementation of Game of Life.
+
+Inputs
+	vector<vector<int>>* gameMatrix: Pointer to the game matrix to update
+	int cellSize: Size of each cell in pixels
+	int windowWidth: Width of the window in pixels
+	int windowHeight: Height of the window in pixels
+
+Outputs
+	None
+
+Returns
+	int: Status, 0 on success
+*/
 int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
@@ -182,6 +249,25 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth
 	return 0;
 }
 
+
+/*
+Threaded implementation of Game of Life.
+
+Inputs
+	vector<int>* gameMatrix: Pointer to the flattened game matrix to update
+	size_t rows: Number of rows in the game matrix
+	size_t cols: Number of columns in the game matrix
+	int numThreads: Number of threads to use
+	int cellSize: Size of each cell in pixels
+	int windowWidth: Width of the window in pixels
+	int windowHeight: Height of the window in pixels
+
+Outputs
+	None
+
+Returns
+	int: Status, 0 on success
+*/
 int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThreads, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
@@ -315,6 +401,25 @@ int thrdGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThr
 	return 0;
 }
 
+
+/*
+OMP threaded implementation of Game of Life.
+
+Inputs
+	vector<int>* gameMatrix: Pointer to the flattened game matrix to update
+	size_t rows: Number of rows in the game matrix
+	size_t cols: Number of columns in the game matrix
+	int numThreads: Number of threads to use
+	int cellSize: Size of each cell in pixels
+	int windowWidth: Width of the window in pixels
+	int windowHeight: Height of the window in pixels
+
+Outputs
+	None
+
+Returns
+	int: Status, 0 on success
+*/
 int ompGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThreads, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
@@ -441,6 +546,20 @@ int ompGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int numThre
 	return 0;
 }
 
+
+/*
+Main loop, collects user input, initializes the game state, and calls the appropriate implementation.
+
+Inputs
+	int argc: User args count
+	char* argv[]: User args
+	
+Outputs
+	None
+
+Returns
+	int: Status, 0 on success, 1 on error
+*/
 int main(int argc, char* argv[]) {
 	//Define game args
 	int numThreads = 8;
@@ -449,7 +568,7 @@ int main(int argc, char* argv[]) {
 	int windowHeight = 600;
 	RunOptions option = RunOptions::THRD;
 
-	//Collect user input, ending if there is an error
+	//Collect user input, end program if there is an error
 	if (getUserInput(argc, argv, &numThreads, &cellSize, &windowWidth, &windowHeight, &option)) {
 		printf("Error collecting user inputs. Invalid args.");
 		return 1;
