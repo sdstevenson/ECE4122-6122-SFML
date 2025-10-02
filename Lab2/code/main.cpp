@@ -164,18 +164,16 @@ Outputs
 Returns
 	int: Status, 0 on success
 */
-int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth, int windowHeight) {
+int seqGameOfLife(vector<int>* gameMatrix, size_t rows, size_t cols, int cellSize, int windowWidth, int windowHeight) {
 	//Set up the game based on args
 	VideoMode vm(windowWidth, windowHeight);
 	RenderWindow window(vm, "Game of Life -SFML", Style::Default);
-	
+
 	//Set up timer
 	int generationNum = 0;
 	chrono::nanoseconds totalTime(0);
 
 	Event event;	//Event to check user inputs
-	int rows = gameMatrix->size();
-	int cols = gameMatrix->at(0).size();
 
 	do {
 		//Check for user inputs
@@ -185,30 +183,72 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth
 		auto start = chrono::high_resolution_clock::now();
 
 		//Update gameMatrix
-		vector<vector<int>> nextGameMatrix(rows, vector<int>(cols, 0));		//Create a new game state without updating curr
-		for (int r = 0; r < rows; ++r) {
-			for (int c = 0; c < cols; ++c) {
-				int numNeighbors = 0;
-				//Check around each cell for neighboring cells
-				for (int dr = -1; dr <= 1; ++dr) {
-					for (int dc = -1; dc <= 1; ++dc) {
-						if (dr == 0 && dc == 0) continue;
-						int rowToCheck = (int)r + dr;
-						int colToCheck = (int)c + dc;
-						if (rowToCheck >= 0 && rowToCheck < (int)rows && colToCheck >= 0 && colToCheck < (int)cols) {
-							if ((*gameMatrix)[rowToCheck][colToCheck] != 0) numNeighbors++;
-						}
-					}
-				}
+		vector<int> nextGameMatrix(rows * cols, 0);	//Create a next game state, so we can update without updating the current
 
-				int currCell = (*gameMatrix)[r][c];
+		//Each thread processes a chunk
+		size_t rowStart = 0;
+		for (size_t row = 0; row < rows; row++) {
+			//Loop through each element on this row
+			for (int col = 0; col < cols; col++) {
+				//Reset numNeighbors per cell
+				int numNeighbors = 0;
+
+				int index = row * cols + col;
+
+#pragma region NeighborsCheck
+				//Check around each cell for neighboring cells - hardcoded 8 neighbors
+				int nr, nc;
+				// (r-1, c-1)
+				nr = row - 1; nc = col - 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index - cols - 1] != 0) ++numNeighbors;
+				}
+				// (r-1, c)
+				nr = row - 1; nc = col;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index - cols] != 0) ++numNeighbors;
+				}
+				// (r-1, c+1)
+				nr = row - 1; nc = col + 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index - cols + 1] != 0) ++numNeighbors;
+				}
+				// (r, c-1)
+				nr = row; nc = col - 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index - 1] != 0) ++numNeighbors;
+				}
+				// (r, c+1)
+				nr = row; nc = col + 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index + 1] != 0) ++numNeighbors;
+				}
+				// (r+1, c-1)
+				nr = row + 1; nc = col - 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index + cols - 1] != 0) ++numNeighbors;
+				}
+				// (r+1, c)
+				nr = row + 1; nc = col;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index + cols] != 0) ++numNeighbors;
+				}
+				// (r+1, c+1)
+				nr = row + 1; nc = col + 1;
+				if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+					if ((*gameMatrix)[index + cols + 1] != 0) ++numNeighbors;
+				}
+#pragma endregion
+
+
+				int currCell = (*gameMatrix)[index];
 				if (currCell != 0) {
 					//If alive, die if numNeighbors is not 2 or 3
-					nextGameMatrix[r][c] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
+					nextGameMatrix[index] = (numNeighbors == 2 || numNeighbors == 3) ? 1 : 0;
 				}
 				else {
 					//If dead, revive if numNeighbors is 3
-					nextGameMatrix[r][c] = (numNeighbors == 3) ? 1 : 0;
+					nextGameMatrix[index] = (numNeighbors == 3) ? 1 : 0;
 				}
 			}
 		}
@@ -230,9 +270,9 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth
 
 		//Draw gameMatrix
 		window.clear(sf::Color::Black);		//Make sure to reset the screen
-		for (int r = 0; r < rows; r++) {
-			for (int c = 0; c < cols; c++) {
-				if ((*gameMatrix)[r][c] != 0) {
+		for (size_t r = 0; r < rows; r++) {
+			for (size_t c = 0; c < cols; c++) {
+				if ((*gameMatrix)[r * cols + c] != 0) {
 					drawSquare(c, r, cellSize, &window);
 				}
 			}
@@ -244,7 +284,7 @@ int seqGameOfLife(vector<vector<int>>* gameMatrix, int cellSize, int windowWidth
 		&& event.type != Event::Closed
 		&& event.type == Event::KeyPressed ? event.key.code != Keyboard::Escape : true);
 
-	//Clear up the window on exit
+	//Clear up the window on exit. Thread pool gets destroyed when out of scope. 
 	window.close();
 	return 0;
 }
@@ -577,8 +617,7 @@ int main(int argc, char* argv[]) {
 	//Define game state trackers
 	size_t rows = (windowHeight / cellSize);
 	size_t cols = (windowWidth / cellSize);
-	vector<vector<int>> gameMatrix(rows, vector<int>(cols, 0));
-	vector<int> flattenedGameMatrix(rows * cols, 0);
+	vector<int> gameMatrix(rows * cols, 0);
 
 	//Initialize the underlying matrix, every cellOccurance(th) cell should be set to alive
 	int cellOccurance = 3;
@@ -587,20 +626,19 @@ int main(int argc, char* argv[]) {
 	for (size_t row = 0; row < rows; row++) {
 		for (size_t col = 0; col < cols; col++) {
 			if (rand() % (cellOccurance + 1) == cellOccurance) {
-				gameMatrix[row][col] = 1;
-				flattenedGameMatrix[row * cols + col] = 1;
+				gameMatrix[row * cols + col] = 1;
 				numAlive++;
 			}
 		}
 	}
 	if (option == RunOptions::SEQ) {
-		seqGameOfLife(&gameMatrix, cellSize, windowWidth, windowHeight);
+		seqGameOfLife(&gameMatrix, rows, cols, cellSize, windowWidth, windowHeight);
 	}
 	else if (option == RunOptions::THRD) {
-		thrdGameOfLife(&flattenedGameMatrix, rows, cols, numThreads, cellSize, windowWidth, windowHeight);
+		thrdGameOfLife(&gameMatrix, rows, cols, numThreads, cellSize, windowWidth, windowHeight);
 	}
 	else if (option == RunOptions::OMP) {
-		ompGameOfLife(&flattenedGameMatrix, rows, cols, numThreads, cellSize, windowWidth, windowHeight);
+		ompGameOfLife(&gameMatrix, rows, cols, numThreads, cellSize, windowWidth, windowHeight);
 	}
 
 	return 0;
